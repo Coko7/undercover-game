@@ -7,17 +7,20 @@ const WORDS_POOL = [
 ];
 
 let GAME_DATA = {
+    state: undefined,
+    round: undefined,
     playerCount: undefined,
     rolesConfig: undefined,
     players: [],
 };
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", function() {
     gameDiv = document.getElementById("game");
     updatePlayerCount();
 });
 
 function startGame() {
+    GAME_DATA.state = "play";
     const gamePlayPhase = document.querySelector("[phase='game-play']");
     const playerCards = gamePlayPhase.querySelector("#game-player-cards");
     playerCards.innerHTML = "";
@@ -56,7 +59,14 @@ function pickFirstPlayer(players) {
 function showPlayerCardDialog() {
 }
 
+function resetEverything() {
+    GAME_DATA.state = "pre-setup";
+    GAME_DATA.players = [];
+    GAME_DATA.playerCount = undefined;
+}
+
 function setupGame() {
+    GAME_DATA.state = "setup";
     if (WORDS_POOL.length == 0) {
         alert("NO MORE WORD!!!");
         return;
@@ -79,6 +89,7 @@ function setupGame() {
             role: undefined,
             word: undefined,
             order: undefined,
+            eliminated: false,
             points: 0,
         };
 
@@ -107,6 +118,90 @@ function setupGame() {
     console.log(
         `Civilians have '${mainWord}' and undercover have '${altWord}'`,
     );
+}
+
+function votePlayer(player) {
+    if (player.eliminated) {
+        throw Error("Cannot vote an already eliminated player!");
+    }
+
+    player.eliminated = true;
+
+    const alivePlayers = GAME_DATA.players.filter((player) =>
+        player.eliminated === false
+    );
+
+    const aliveCivils = alivePlayers.filter((player) =>
+        player.role === "civil"
+    );
+
+    const aliveUnders = alivePlayers.filter((player) =>
+        player.role === "under"
+    );
+
+    const aliveWhites = alivePlayers.filter((player) =>
+        player.role === "white"
+    );
+
+    if (player.role === "white") {
+        // Allow to crack the secret word
+        // TODO: IMPLEMENT GUESS LOGIC
+        const guessedCorrectly = false;
+        if (guessedCorrectly) {
+            const winners = [];
+            winners.push(player);
+            // TODO: Do other Mr. Whites also win if alive and their peer guesses the word?
+            // for (const aliveWhite of aliveWhites) {
+            //     winners.push(aliveWhite);
+            // }
+
+            return endGame(2, winners);
+
+            // END GAME. Mr White have won.
+            // player.points += 6;
+        }
+    }
+
+    if (aliveUnders.length === 0 && aliveWhites.length === 0) {
+        // END GAME. Civils have won
+        return endGame(0, aliveCivils);
+    }
+
+    if (alivePlayers.length === 1) {
+        // END GAME. Civilians have lost.
+        const winners = [];
+        for (const alivePlayer of alivePlayers) {
+            if (alivePlayer.role === "civil") continue;
+
+            winners.push(alivePlayer);
+            return endGame(1, winners);
+        }
+    }
+
+    // Do logic to remove his card, etc
+}
+
+function endGame(scenarioId, winners) {
+    if (scenarioId === 0) {
+        for (const civilWinner of winners) {
+            civilWinner.points += 2;
+        }
+    }
+
+    if (scenarioId === 1) {
+        for (const winner of winners) {
+            if (winner.role === "under") winner.points += 10;
+            if (winner.role === "white") winner.points += 6;
+        }
+    }
+
+    if (scenarioId === 2) {
+        for (const whiteWinner of winners) {
+            whiteWinner.points += 6;
+        }
+    }
+
+    // Display some stuff, etc
 }
 
 function showPlayersDebug(players) {
@@ -152,7 +247,7 @@ function createPlayerCard(player) {
     card.classList.add("player-card");
     card.classList.add(`role-${player.role}`);
     card.id = `player-card-${player.id}`;
-    card.addEventListener("click", function () {
+    card.addEventListener("click", function() {
         alert(player.name);
     });
 
