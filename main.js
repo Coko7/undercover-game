@@ -1,4 +1,6 @@
-let gameDiv;
+let GAME_SETUP_DIV;
+let ROUND_SETUP_DIV;
+let ROUND_PLAY_DIV;
 
 const WORDS_POOL = [
     ["Paris", "Marseille"],
@@ -14,15 +16,17 @@ let GAME_DATA = {
     players: [],
 };
 
-document.addEventListener("DOMContentLoaded", function() {
-    gameDiv = document.getElementById("game");
+document.addEventListener("DOMContentLoaded", function () {
+    GAME_SETUP_DIV = document.querySelector("[phase='game-setup']");
+    ROUND_SETUP_DIV = document.querySelector("[phase='round-setup']");
+    ROUND_PLAY_DIV = document.querySelector("[phase='round-play']");
+
     updatePlayerCount();
 });
 
-function startGame() {
+function startRound() {
     GAME_DATA.state = "play";
-    const gamePlayPhase = document.querySelector("[phase='game-play']");
-    const playerCards = gamePlayPhase.querySelector("#game-player-cards");
+    const playerCards = ROUND_PLAY_DIV.querySelector(".player-cards");
     playerCards.innerHTML = "";
     for (const player of GAME_DATA.players) {
         playerCards.appendChild(createPlayerCard(player));
@@ -35,7 +39,7 @@ function startGame() {
             order = GAME_DATA.players.length + order;
         }
         player.order = order;
-        const playerCard = gamePlayPhase.querySelector(
+        const playerCard = ROUND_PLAY_DIV.querySelector(
             `#player-card-${player.id}`,
         );
         const orderDisplay = document.createElement("p");
@@ -65,12 +69,13 @@ function resetEverything() {
     GAME_DATA.playerCount = undefined;
 }
 
-function setupGame() {
+function setupRound() {
     GAME_DATA.state = "setup";
     if (WORDS_POOL.length == 0) {
         alert("NO MORE WORD!!!");
         return;
     }
+
     // Choose random word group in full list
     const rndIdx = getRandNum(0, WORDS_POOL.length);
     const wordGroup = WORDS_POOL[rndIdx];
@@ -108,7 +113,7 @@ function setupGame() {
         if (player.role === "white") player.word = "...";
     }
 
-    let playerCards = document.getElementById("setup-player-cards");
+    let playerCards = ROUND_SETUP_DIV.querySelector(".player-cards");
     playerCards.innerHTML = "";
     for (const player of GAME_DATA.players) {
         playerCards.appendChild(createPlayerCard(player));
@@ -213,15 +218,17 @@ function showPlayersDebug(players) {
 }
 
 function updatePlayerCount() {
-    const playerCount = document.getElementById("player-count").value;
-    const playerCountSpan = document.getElementById("span-player-count");
+    const playerCount =
+        GAME_SETUP_DIV.querySelector("#input-player-count").value;
+
+    const playerCountSpan = GAME_SETUP_DIV.querySelector("#span-player-count");
     playerCountSpan.innerHTML = playerCount;
 
     const gameConfig = getGameConfig(playerCount);
     GAME_DATA.playerCount = playerCount;
     GAME_DATA.rolesConfig = gameConfig;
 
-    const rolesPrevDiv = document.getElementById("roles-preview");
+    const rolesPrevDiv = GAME_SETUP_DIV.querySelector("#roles-preview");
     rolesPrevDiv.innerHTML = "";
 
     if (gameConfig.civil > 0) {
@@ -243,25 +250,25 @@ function updatePlayerCount() {
 }
 
 function createPlayerCard(player) {
-    let card = document.createElement("article");
+    const card = document.createElement("article");
     card.classList.add("player-card");
     card.classList.add(`role-${player.role}`);
     card.id = `player-card-${player.id}`;
-    card.addEventListener("click", function() {
+    card.addEventListener("click", function () {
         alert(player.name);
     });
 
-    let playerName = document.createElement("p");
+    const playerName = document.createElement("p");
     playerName.classList.add("player-name");
     playerName.innerHTML = player.name;
     card.appendChild(playerName);
 
-    let playerRole = document.createElement("p");
+    const playerRole = document.createElement("p");
     playerRole.classList.add("player-role");
     playerRole.innerHTML = player.role;
     card.appendChild(playerRole);
 
-    let playerWord = document.createElement("p");
+    const playerWord = document.createElement("p");
     playerWord.classList.add("player-word");
     playerWord.innerHTML = player.word;
     card.appendChild(playerWord);
@@ -270,15 +277,15 @@ function createPlayerCard(player) {
 }
 
 function createBadge(text, value, cssClass) {
-    let badgeElem = document.createElement("div");
+    const badgeElem = document.createElement("div");
     badgeElem.classList.add("role-badge");
     badgeElem.classList.add(cssClass);
 
-    let badgeTextElem = document.createElement("span");
+    const badgeTextElem = document.createElement("span");
     badgeTextElem.classList.add("badge-text");
     badgeTextElem.innerHTML = `${text}`;
 
-    let badgeValElem = document.createElement("span");
+    const badgeValElem = document.createElement("span");
     badgeValElem.classList.add("badge-val");
     badgeValElem.innerHTML = `${value}`;
 
@@ -350,9 +357,7 @@ function generateRolesPool(playerCount) {
     if (playerCount < 3) throw Error("Cannot play with less than 3 players");
     if (playerCount > 20) throw Error("Cannot play with more than 20 players");
 
-    console.log(playerCount);
     const config = combinations[playerCount];
-    console.log(config);
     const pool = [];
 
     for (let i = 0; i < config.civil; i++) pool.push("civil");

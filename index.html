@@ -15,32 +15,32 @@
         <header>
             <h1>Undercover Game</h1>
         </header>
+
         <div id="game">
-            <div class="game-phase" phase="setup">
-                <code>setup phase</code>
-                <div>
-                    <label for="input-player-count">Player Count</label>
-                    <input type="range" id="player-count" name="player-count" min="3" max="20" value="3"
+            <div class="game-phase" phase="game-setup">
+                <code>game setup phase</code>
+                <div class="settings">
+                    <label for="input-player-count">Player count:</label>
+                    <input type="range" id="input-player-count" name="input-player-count" min="3" max="20" value="3"
                         onchange="updatePlayerCount();" />
                     <span id="span-player-count"></span>
                 </div>
 
-                <div id="roles-preview">
-                </div>
+                <div id="roles-preview"></div>
 
-                <button id="setup-game" onclick="setupGame();">Launch</button>
+                <button id="btn-setup-round" onclick="setupRound();">Launch</button>
             </div>
 
-            <div class="game-phase" phase="get-roles">
-                <code>get roles phase</code>
-                <div id="setup-player-cards"></div>
-                <button id="start-game" onclick="startGame();">Start</button>
+            <div class="game-phase" phase="round-setup">
+                <code>round setup phase</code>
+                <div class="player-cards"></div>
+                <button id="btn-start-round" onclick="startRound();">Start</button>
             </div>
 
-            <div class="game-phase" phase="game-play">
-                <code>play phase</code>
-                <div id="game-player-cards"></div>
-                <button id="start-vote" onclick="startVote();">Vote</button>
+            <div class="game-phase" phase="round-play">
+                <code>round play phase</code>
+                <div class="player-cards"></div>
+                <button id="btn-vote" onclick="votePlayer();">Vote</button>
             </div>
         </div>
     </main>

@@ -42,8 +42,7 @@
     background-color: #FAFAFA;
 }
 
-#setup-player-cards,
-#game-player-cards {
+.player-cards {
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
