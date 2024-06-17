@@ -1,0 +1,58 @@
+* {
+    margin: 0px;
+    padding: 0px;
+}
+
+#game {
+    border: 1px solid black;
+}
+
+.game-phase {
+    border: 1px dashed black;
+    margin: 1em;
+    background-color: #E0E0E0;
+}
+
+#roles-preview {
+    display: flex;
+    flex-direction: row;
+}
+
+.role-badge {
+    margin: 1em;
+    border: 2px solid black;
+    border-radius: 25px;
+    display: inline-block;
+    padding: 0.5em;
+}
+
+.role-badge>.badge-val {
+    margin-left: 1em;
+}
+
+.role-badge.role-civil {
+    background-color: #AED581;
+}
+
+.role-badge.role-under {
+    background-color: #64B5F6;
+}
+
+.role-badge.role-white {
+    background-color: #FAFAFA;
+}
+
+#player-cards {
+    display: flex;
+    flex-direction: row;
+}
+
+.player-card {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid black;
+    height: 100px;
+    margin: 1em;
+    padding: 1em;
+    background-color: #FFF176;
+}
