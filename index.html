@@ -17,19 +17,30 @@
         </header>
         <div id="game">
             <div class="game-phase" phase="setup">
-                <p>
+                <code>setup phase</code>
+                <div>
                     <label for="input-player-count">Player Count</label>
-                    <input type="number" id="player-count" name="player-count" min="3" max="20" value="3"
+                    <input type="range" id="player-count" name="player-count" min="3" max="20" value="3"
                         onchange="updatePlayerCount();" />
-                </p>
+                    <span id="span-player-count"></span>
+                </div>
 
-                <div id="roles-preview"></div>
+                <div id="roles-preview">
+                </div>
 
-                <button id="start-game" onclick="startGame();">Start</button>
+                <button id="setup-game" onclick="setupGame();">Launch</button>
             </div>
 
             <div class="game-phase" phase="get-roles">
-                <div id="player-cards"></div>
+                <code>get roles phase</code>
+                <div id="setup-player-cards"></div>
+                <button id="start-game" onclick="startGame();">Start</button>
+            </div>
+
+            <div class="game-phase" phase="game-play">
+                <code>play phase</code>
+                <div id="game-player-cards"></div>
+                <button id="start-vote" onclick="startVote();">Vote</button>
             </div>
         </div>
     </main>

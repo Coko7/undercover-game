@@ -1,41 +1,127 @@
 let gameDiv;
 
+const WORDS_POOL = [
+    ["Paris", "Marseille"],
+    ["Cerise", "Fraise"],
+    ["Yaourt", "Creme glace"],
+];
+
 let GAME_DATA = {
     playerCount: undefined,
     rolesConfig: undefined,
     players: [],
 };
 
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", function () {
     gameDiv = document.getElementById("game");
     updatePlayerCount();
 });
 
 function startGame() {
+    const gamePlayPhase = document.querySelector("[phase='game-play']");
+    const playerCards = gamePlayPhase.querySelector("#game-player-cards");
+    playerCards.innerHTML = "";
+    for (const player of GAME_DATA.players) {
+        playerCards.appendChild(createPlayerCard(player));
+    }
+
+    const firstPlayer = pickFirstPlayer(GAME_DATA.players);
+    for (const player of GAME_DATA.players) {
+        let order = player.id - firstPlayer.id;
+        if (order < 0) {
+            order = GAME_DATA.players.length + order;
+        }
+        player.order = order;
+        const playerCard = gamePlayPhase.querySelector(
+            `#player-card-${player.id}`,
+        );
+        const orderDisplay = document.createElement("p");
+        orderDisplay.innerHTML = player.order + 1;
+        playerCard.appendChild(orderDisplay);
+    }
+
+    console.log(firstPlayer);
+}
+
+function pickFirstPlayer(players) {
+    const playersAbleToStart = players.filter((player) =>
+        player.role != "white"
+    );
+
+    const rndIdx = getRandNum(0, playersAbleToStart.length);
+    const firstPlayer = playersAbleToStart[rndIdx];
+    return firstPlayer;
+}
+
+function showPlayerCardDialog() {
+}
+
+function setupGame() {
+    if (WORDS_POOL.length == 0) {
+        alert("NO MORE WORD!!!");
+        return;
+    }
+    // Choose random word group in full list
+    const rndIdx = getRandNum(0, WORDS_POOL.length);
+    const wordGroup = WORDS_POOL[rndIdx];
+    WORDS_POOL.splice(rndIdx, 1);
+
+    // Pick main and alt word from group
+    const mainWord = takeRandomFromPool(wordGroup);
+    const altWord = takeRandomFromPool(wordGroup);
+
+    // Create players
     GAME_DATA.players = [];
     for (let i = 0; i < GAME_DATA.playerCount; i++) {
         const player = {
-            id: i + 1,
+            id: i,
             name: `Player ${i + 1}`,
             role: undefined,
             word: undefined,
+            order: undefined,
             points: 0,
         };
 
         GAME_DATA.players.push(player);
     }
 
-    var playerCards = document.getElementById("player-cards");
+    // Generate roles pool
+    const rolesPool = generateRolesPool(GAME_DATA.playerCount);
+
+    // Assign roles randomly
+    for (const player of GAME_DATA.players) {
+        player.role = takeRandomFromPool(rolesPool);
+
+        if (player.role === "civil") player.word = mainWord;
+        if (player.role === "under") player.word = altWord;
+        if (player.role === "white") player.word = "...";
+    }
+
+    let playerCards = document.getElementById("setup-player-cards");
     playerCards.innerHTML = "";
     for (const player of GAME_DATA.players) {
         playerCards.appendChild(createPlayerCard(player));
     }
+    showPlayersDebug(GAME_DATA.players);
 
-    console.log(GAME_DATA.players);
+    console.log(
+        `Civilians have '${mainWord}' and undercover have '${altWord}'`,
+    );
+}
+
+function showPlayersDebug(players) {
+    for (const player of players) {
+        console.log(
+            `${player.id}. ${player.name} [${player.role}]: ${player.word} (${player.points} pts)`,
+        );
+    }
 }
 
 function updatePlayerCount() {
     const playerCount = document.getElementById("player-count").value;
+    const playerCountSpan = document.getElementById("span-player-count");
+    playerCountSpan.innerHTML = playerCount;
+
     const gameConfig = getGameConfig(playerCount);
     GAME_DATA.playerCount = playerCount;
     GAME_DATA.rolesConfig = gameConfig;
@@ -53,6 +139,7 @@ function updatePlayerCount() {
             createBadge("Undercover", gameConfig.under, "role-under"),
         );
     }
+
     if (gameConfig.white > 0) {
         rolesPrevDiv.appendChild(
             createBadge("Mr. White", gameConfig.white, "role-white"),
@@ -61,26 +148,42 @@ function updatePlayerCount() {
 }
 
 function createPlayerCard(player) {
-    var card = document.createElement("article");
+    let card = document.createElement("article");
     card.classList.add("player-card");
+    card.classList.add(`role-${player.role}`);
+    card.id = `player-card-${player.id}`;
+    card.addEventListener("click", function () {
+        alert(player.name);
+    });
 
-    var playerName = document.createElement("p");
+    let playerName = document.createElement("p");
+    playerName.classList.add("player-name");
     playerName.innerHTML = player.name;
     card.appendChild(playerName);
+
+    let playerRole = document.createElement("p");
+    playerRole.classList.add("player-role");
+    playerRole.innerHTML = player.role;
+    card.appendChild(playerRole);
+
+    let playerWord = document.createElement("p");
+    playerWord.classList.add("player-word");
+    playerWord.innerHTML = player.word;
+    card.appendChild(playerWord);
 
     return card;
 }
 
 function createBadge(text, value, cssClass) {
-    var badgeElem = document.createElement("div");
+    let badgeElem = document.createElement("div");
     badgeElem.classList.add("role-badge");
     badgeElem.classList.add(cssClass);
 
-    var badgeTextElem = document.createElement("span");
+    let badgeTextElem = document.createElement("span");
     badgeTextElem.classList.add("badge-text");
     badgeTextElem.innerHTML = `${text}`;
 
-    var badgeValElem = document.createElement("span");
+    let badgeValElem = document.createElement("span");
     badgeValElem.classList.add("badge-val");
     badgeValElem.innerHTML = `${value}`;
 
@@ -152,7 +255,9 @@ function generateRolesPool(playerCount) {
     if (playerCount < 3) throw Error("Cannot play with less than 3 players");
     if (playerCount > 20) throw Error("Cannot play with more than 20 players");
 
+    console.log(playerCount);
     const config = combinations[playerCount];
+    console.log(config);
     const pool = [];
 
     for (let i = 0; i < config.civil; i++) pool.push("civil");
@@ -160,4 +265,16 @@ function generateRolesPool(playerCount) {
     for (let i = 0; i < config.white; i++) pool.push("white");
 
     return pool;
+}
+
+function takeRandomFromPool(pool) {
+    if (pool.length == 0) throw Error("Cannot take from empty pool");
+
+    const rndIdx = getRandNum(0, pool.length);
+    return pool.splice(rndIdx, 1)[0];
+}
+
+// max is excluded
+function getRandNum(min, max) {
+    return Math.floor(Math.random() * (max - min)) + min;
 }
