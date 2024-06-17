@@ -52,6 +52,7 @@ class Game {
         this.rounds = [];
         this.wordsPool = WordsDatabase.getWordsList(language);
         this.roundIdSerial = 0;
+        this.currentPhase = GamePhases.GameSetup;
     }
 
     /**
@@ -66,14 +67,67 @@ class Game {
      * Start the game.
      */
     start() {
+        this.throwIfWrongPhase(GamePhases.GameSetup);
+
+        this.players = [];
+        for (let i = 0; i < this.playerCount; i++) {
+            const player = new Player(0, `Player ${i + 1}`);
+            this.players.push(player);
+        }
+
         if (this.wordsPool.length === 0) {
             throw Error("Cannot start game because the wordsPool is empty!");
         }
 
-        const round = new Round(this.roundIdSerial++);
+        const round = new Round(this);
+        this.rounds.push(round);
+    }
+
+    throwIfWrongPhase(expectedGamePhase) {
+        if (this.currentPhase !== expectedGamePhase) {
+            throw Error(
+                `Expected ${expectedGamePhase} but got: ${this.currentPhase}`,
+            );
+        }
+    }
+}
+
+const GamePhases = {
+    GameSetup: 0,
+    RoundSetup: 1,
+    TurnPlaying: 2,
+    TurnVotingStart: 3,
+    TurnVotingContinue: 4,
+    RoundEnded: 5,
+};
+
+/** Class representing a game round. */
+class Round {
+    /**
+     * Create a game round.
+     * @param {number} id - The id of the round.
+     * @param {Game} game - The game this round belongs to.
+     */
+    constructor(id, game) {
+        this.id = id;
+        this.game = game;
+        this.secretWord = null;
+        this.altWord = null;
+        this.currentTurn = null;
+        this.winners = [];
+        this.currentPhase = null;
+
+        this.init();
+    }
+
+    hasEnded() {
+        return winners.length > 0;
+    }
+
+    init() {
         // Choose random word group in full list
         /** {WordGroup} */
-        const wordGroup = CommonUtils.takeRandomFromPool(this.wordsPool);
+        const wordGroup = CommonUtils.takeRandomFromPool(this.game.wordsPool);
 
         // Pick main and alt word from group
         /** {string} */
@@ -81,21 +135,129 @@ class Game {
 
         /** {string} */
         const altWord = CommonUtils.takeRandomFromPool(wordGroup);
-    }
-}
 
-/** Class representing a game round. */
-class Round {
+        // Generate roles pool
+        const rolesPool = RolesConfigs.generateRolesPool(this.game.rolesConfig);
+
+        // Assign roles randomly
+        for (const player of this.game.players) {
+            player.role = CommonUtils.takeRandomFromPool(rolesPool);
+
+            if (player.isCivilian()) player.word = mainWord;
+            if (player.isUndercover()) player.word = altWord;
+            if (player.isMrWhite()) player.word = "";
+        }
+
+        this.currentPhase = GamePhases.RoundSetup;
+    }
+
     /**
-     * Create a game round.
-     * @param {number} id - The id of the round.
+     * Start the round.
      */
-    constructor(id) {
-        this.id = id;
-        this.secretWord = null;
-        this.altWord = null;
-        this.currentTurn = null;
-        this.winners = [];
+    start() {
+        this.game.throwIfWrongPhase(GamePhases.RoundSetup);
+
+        this.currentPhase = GamePhases.RoundPlaying;
+        const firstPlayer = this.pickFirstPlayer();
+
+        for (const player of this.game.players) {
+            let order = player.id - firstPlayer.id;
+            if (order < 0) {
+                order = this.game.players.length + order;
+            }
+
+            player.order = order;
+        }
+
+        this.game.currentPhase = GamePhases.TurnPlaying;
+    }
+
+    /**
+     * Randomly picks the first player.
+     * Players with the "Mr. White" role cannot start.
+     * @returns {Player} The player who plays first.
+     */
+    pickFirstPlayer() {
+        const playersAbleToStart = this.game.players.filter((player) =>
+            player.role !== RolesConfigs.MrWhite
+        );
+
+        const rndIdx = CommonUtils.getRandNum(0, playersAbleToStart.length);
+        const firstPlayer = playersAbleToStart[rndIdx];
+        return firstPlayer;
+    }
+
+    voteMrWhite(mrWhiteToEliminate, guessWord) {
+        this.game.throwIfWrongPhase(GamePhases.TurnVotingStart);
+        this.game.currentPhase = GamePhases.TurnVotingContinue;
+
+        if (guessWord === this.mainWord) {
+            const winners = [];
+            winners.push(mrWhiteToEliminate);
+            // TODO: Do other Mr. Whites also win if alive and their peer guesses the word?
+            // for (const aliveWhite of aliveWhites) {
+            //     winners.push(aliveWhite);
+            // }
+
+            // TODO: EndGame
+            return this.endGame(winners);
+
+            // END GAME. Mr White have won.
+            // player.points += 6;
+        } else {
+            this.voteContinue(mrWhiteToEliminate);
+        }
+    }
+
+    voteStart(playerToEliminate) {
+        this.game.throwIfWrongPhase(GamePhases.TurnPlaying);
+        this.game.currentPhase = GamePhases.TurnVotingStart;
+
+        if (playerToEliminate.isEliminated) {
+            throw Error("Cannot vote out an already eliminated player!");
+        }
+
+        if (playerToEliminate.isMrWhite()) {
+            return;
+        }
+
+        this.game.currentPhase = GamePhases.TurnVotingContinue;
+        this.voteContinue(playerToEliminate);
+    }
+
+    voteContinue(playerToEliminate) {
+        playerToEliminate.isEliminated = true;
+
+        const alivePlayers = this.game.players.filter((p) =>
+            p.isEliminated === false
+        );
+
+        const aliveCivils = alivePlayers.filter((p) => p.isCivilian());
+        const aliveUnders = alivePlayers.filter((p) => p.isUndercover());
+        const aliveWhites = alivePlayers.filter((p) => p.isMrWhite());
+
+        if (aliveUnders.length === 0 && aliveWhites.length === 0) {
+            // END GAME. Civils have won
+            return this.endGame(aliveCivils);
+        }
+
+        if (alivePlayers.length === 1) {
+            // END GAME. Civilians have lost.
+            const winners = [];
+            for (const alivePlayer of alivePlayers) {
+                if (alivePlayer.isCivilian()) continue;
+
+                winners.push(alivePlayer);
+                return this.endGame(winners);
+            }
+        }
+    }
+
+    endGame(winners) {
+        this.game.throwIfWrongPhase(GamePhases.TurnVotingContinue);
+        for (const winner of winners) {
+            winner.points += winner.role.winPoints;
+        }
     }
 }
 
@@ -122,6 +284,30 @@ class Player {
      */
     setRole(role) {
         this.role = role;
+    }
+
+    /**
+     * Check whether the player has the Civilian role.
+     * @returns {boolean} true if the player is a civilian, false otherwise.
+     */
+    isCivilian() {
+        return this.role === RolesConfigs.Civilian;
+    }
+
+    /**
+     * Check whether the player has the Undercover role.
+     * @returns {boolean} true if the player is an undercover, false otherwise.
+     */
+    isUndercover() {
+        return this.role === RolesConfigs.Undercover;
+    }
+
+    /**
+     * Check whether the player has the "Mr. White" role.
+     * @returns {boolean} true if the player is Mr. White, false otherwise.
+     */
+    isMrWhite() {
+        return this.role === RolesConfigs.MrWhite;
     }
 }
 
@@ -199,6 +385,30 @@ class RolesConfigs {
         }
 
         return configs[playerCount];
+    }
+
+    /**
+     * Generate the pool of roles used to randomly assign the players' team.
+     * @param {RolesConfig} rolesConfig - The roles configuration to use.
+     * @returns {Roles[]} A pool (array) of roles.
+     */
+    static generateRolesPool(rolesConfig) {
+        /** {Role[]} The pool of roles */
+        const pool = [];
+
+        for (let i = 0; i < rolesConfig.civiliansCount; i++) {
+            pool.push(this.Civilian);
+        }
+
+        for (let i = 0; i < rolesConfig.undercoversCount; i++) {
+            pool.push(this.Undercover);
+        }
+
+        for (let i = 0; i < rolesConfig.mrWhitesCount; i++) {
+            pool.push(this.MrWhite);
+        }
+
+        return pool;
     }
 }
 
